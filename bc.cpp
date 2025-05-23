@@ -141,9 +141,10 @@ Output calc_blood_composition(Input _input) {
 
     // ACIDBASE
     bool limits_used_ab = false;
-    // set the limits based on the previous calculations if available
+    // set the limits based
     left_hp = left_hp_wide; // lower bound for H⁺ concentration
     right_hp = right_hp_wide; // upper bound for H⁺ concentration
+    // set the limits based on the previous calculations if available
     if (prev_ph > 0) {
         left_hp = std::pow(10.0, -(prev_ph + delta_ph_limits)) * 1000.0;
         right_hp = std::pow(10.0, -(prev_ph - delta_ph_limits)) * 1000.0;
@@ -197,9 +198,10 @@ Output calc_blood_composition(Input _input) {
 
     // set the limits based on the previous calculations
     bool limits_used_oxy = false;
-    // set the limits based on the previous calculations if available
+    // set the limits
     left_o2 = left_o2_wide; // lower bound po2
     right_o2 = right_o2_wide; // upper bound po2
+    // set the limits based on the previous calculations if available
     if (prev_po2 > 0) {
         left_o2 = prev_po2 - delta_o2_limits;
         if (left_o2 < 0) left_o2 = 0; // ensure lower bound is not negative
