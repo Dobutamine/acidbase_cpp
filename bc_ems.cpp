@@ -393,35 +393,3 @@ EMSCRIPTEN_BINDINGS(my_module) {
         .field("error", &Output::error)
         .field("iterations", &Output::iterations);
 };
-
-
-// int main() {
-//     // Example usage
-//     Input input;
-//     input.tco2 = 23.5;
-//     input.to2 = 4.02;
-//     input.temp = 37.0;
-//     input.hemoglobin = 8.0;
-//     input.na = 138.0;
-//     input.k = 3.5;
-//     input.ca = 1.0;
-//     input.mg = 0.75;
-//     input.cl = 108.0;
-//     input.lact = 1.0;
-//     input.albumin = 25.0;
-//     input.phosphates = 1.64;
-//     input.dpg = 5.0;
-//     input.uma = 3.8;
-//     input.prev_po2 = 18.7;
-//     input.prev_ph = 7.37;
-//     input.p50_0 = 18.8; // P50_0 = 18.8 for fetal hemoglobin, 26.7 for adult hemoglobin
-
-//     Output result = calc_blood_composition(input);
-//     std::cout << "pH: " << result.ph << "\n";
-//     std::cout << "pco2: " << result.pco2 << "\n";
-//     std::cout << "hco3: " << result.hco3 << "\n";
-//     std::cout << "be: " << result.be << "\n";
-//     std::cout << "po2: " << result.po2 << "\n";
-//     std::cout << "so2: " << result.so2 << "\n";
-
-// }
