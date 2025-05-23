@@ -15,7 +15,7 @@ whereas adult Hgb A has a P50 of ≈ 26–27 mm Hg (Emond et al. 1993; Maurer et
 
 // -----------------------------------------------------------------------------
 // Compile with command : 
-// emcc bc_ems.cpp -o bc_ems.js  -O3  -s ENVIRONMENT="web,worker" --std=c++17  --bind 
+// emcc bc_ems.cpp -O3 -s MODULARIZE=1 -s EXPORT_NAME="createModule" -s EXPORT_ES6=1 -s ENVIRONMENT="web,worker" -o bc_ems.js --bind
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
