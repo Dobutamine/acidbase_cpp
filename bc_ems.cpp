@@ -9,9 +9,13 @@ Hgb F, the predominant hemoglobin in newborns, has a high oxygen affinity and, a
 (partial pressure of oxygen at which 50% of Hgb is saturated by oxygen) of ≈ 18–19 mm Hg, 
 whereas adult Hgb A has a P50 of ≈ 26–27 mm Hg (Emond et al. 1993; Maurer et al. 1970). 
 */
+// include emscripten dependencies
+#include <emscripten.h>
+#include <emscripten/bind.h>
+
 // -----------------------------------------------------------------------------
 // Compile with command : 
-// g++ bc.cpp -O3 -o bc
+// emcc bc_ems.cpp -o bc_ems.js  -O3  -s ENVIRONMENT="web,worker" --std=c++17  --bind 
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
@@ -175,8 +179,8 @@ Output calc_blood_composition(Input _input) {
         error_ab = error;
     }
 
-    std::cout << "iterations acid base: " << iterations_ab << "\n";
-    std::cout << "error acid base: " << error_ab << "\n";
+    // std::cout << "iterations acid base: " << iterations_ab << "\n";
+    // std::cout << "error acid base: " << error_ab << "\n";
 
     if (hp_est > 0) {
         // compute base excess
@@ -239,8 +243,8 @@ Output calc_blood_composition(Input _input) {
         error_oxy = error;
     }
 
-    std::cout << "iterations oxygenation: " << iterations_oxy << "\n";
-    std::cout << "error oxygenation: " << error_oxy << "\n";
+    // std::cout << "iterations oxygenation: " << iterations_oxy << "\n";
+    // std::cout << "error oxygenation: " << error_oxy << "\n";
 
     if (po2_est > -1) {
         out.po2 = po2_est;
@@ -358,33 +362,66 @@ double brent_root_fast(F f, double a, double b, double tolerance, int max_iterat
     return b;
 }
 
-int main() {
-    // Example usage
-    Input input;
-    input.tco2 = 23.5;
-    input.to2 = 4.02;
-    input.temp = 37.0;
-    input.hemoglobin = 8.0;
-    input.na = 138.0;
-    input.k = 3.5;
-    input.ca = 1.0;
-    input.mg = 0.75;
-    input.cl = 108.0;
-    input.lact = 1.0;
-    input.albumin = 25.0;
-    input.phosphates = 1.64;
-    input.dpg = 5.0;
-    input.uma = 3.8;
-    input.prev_po2 = 18.7;
-    input.prev_ph = 7.37;
-    input.p50_0 = 18.8; // P50_0 = 18.8 for fetal hemoglobin, 26.7 for adult hemoglobin
+// set the emscripten bindings
+EMSCRIPTEN_BINDINGS(my_module) {
+    emscripten::function("calc_blood_composition", &calc_blood_composition);
+    emscripten::value_object<Input>("Input")
+        .field("tco2", &Input::tco2)
+        .field("to2", &Input::to2)
+        .field("temp", &Input::temp)
+        .field("hemoglobin", &Input::hemoglobin)
+        .field("na", &Input::na)
+        .field("k", &Input::k)
+        .field("ca", &Input::ca)
+        .field("mg", &Input::mg)
+        .field("cl", &Input::cl)
+        .field("lact", &Input::lact)
+        .field("albumin", &Input::albumin)
+        .field("phosphates", &Input::phosphates)
+        .field("dpg", &Input::dpg)
+        .field("uma", &Input::uma)
+        .field("prev_ph", &Input::prev_ph)
+        .field("prev_po2", &Input::prev_po2)
+        .field("p50_0", &Input::p50_0);
+    emscripten::value_object<Output>("Output")
+        .field("ph", &Output::ph)
+        .field("pco2", &Output::pco2)
+        .field("hco3", &Output::hco3)
+        .field("be", &Output::be)
+        .field("po2", &Output::po2)
+        .field("so2", &Output::so2)
+        .field("error", &Output::error)
+        .field("iterations", &Output::iterations);
+};
 
-    Output result = calc_blood_composition(input);
-    std::cout << "pH: " << result.ph << "\n";
-    std::cout << "pco2: " << result.pco2 << "\n";
-    std::cout << "hco3: " << result.hco3 << "\n";
-    std::cout << "be: " << result.be << "\n";
-    std::cout << "po2: " << result.po2 << "\n";
-    std::cout << "so2: " << result.so2 << "\n";
 
-}
+// int main() {
+//     // Example usage
+//     Input input;
+//     input.tco2 = 23.5;
+//     input.to2 = 4.02;
+//     input.temp = 37.0;
+//     input.hemoglobin = 8.0;
+//     input.na = 138.0;
+//     input.k = 3.5;
+//     input.ca = 1.0;
+//     input.mg = 0.75;
+//     input.cl = 108.0;
+//     input.lact = 1.0;
+//     input.albumin = 25.0;
+//     input.phosphates = 1.64;
+//     input.dpg = 5.0;
+//     input.uma = 3.8;
+//     input.prev_po2 = 18.7;
+//     input.prev_ph = 7.37;
+//     input.p50_0 = 18.8; // P50_0 = 18.8 for fetal hemoglobin, 26.7 for adult hemoglobin
+
+//     Output result = calc_blood_composition(input);
+//     std::cout << "pH: " << result.ph << "\n";
+//     std::cout << "pco2: " << result.pco2 << "\n";
+//     std::cout << "hco3: " << result.hco3 << "\n";
+//     std::cout << "be: " << result.be << "\n";
+//     std::cout << "po2: " << result.po2 << "\n";
+//     std::cout << "so2: " << result.so2 << "\n";
+
+// }
