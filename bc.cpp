@@ -189,7 +189,7 @@ Output calc_blood_composition(Input _input) {
     double dpCO2 = pco2 - 40.0;         // Haldane effect: ↑pCO2 → right shift → ↑P₅₀
     double dT = temp - 37.0;            // ↑T → right shift → ↑P₅₀
     double dDPG = dpg - 5.0;            // ↑DPG → right shift → ↑P₅₀
-    
+
     // Adjust P50 on log10 scale
     log10_p50 = std::log10(P50_0) - 0.48 * dpH + 0.014 * dpCO2 + 0.024 * dT + 0.051 * dDPG;
     P50 = std::pow(10.0, log10_p50);
