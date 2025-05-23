@@ -3,6 +3,12 @@
 #include <cmath>     // for std::abs, std::log10, std::exp, std::tanh
 #include <functional>
 
+// Normal neonatal p50_0: https://pmc.ncbi.nlm.nih.gov/articles/PMC6626707/
+/*). 
+Hgb F, the predominant hemoglobin in newborns, has a high oxygen affinity and, as a result, a lower P50 
+(partial pressure of oxygen at which 50% of Hgb is saturated by oxygen) of ≈ 18–19 mm Hg, 
+whereas adult Hgb A has a P50 of ≈ 26–27 mm Hg (Emond et al. 1993; Maurer et al. 1970). 
+*/
 // include emscripten dependencies
 // #include <emscripten.h>
 // #include <emscripten/bind.h>
@@ -27,6 +33,7 @@ struct Input {
     double uma;
     double prev_ph;
     double prev_po2;
+    double p50_0; // P50_0 = 18.8 for fetal hemoglobin, 26.7 for adult hemoglobin
 };
 
 // -----------------------------------------------------------------------------
@@ -56,7 +63,6 @@ constexpr double right_hp_wide   = 3.16227766017e-4; // upper bound for H⁺ con
 constexpr double delta_ph_limits = 0.1; // delta for pH limits
 constexpr double n               = 2.7; // Hill coefficient
 constexpr double alpha_o2        = 1.38e-5; // O2 solubility coefficient
-constexpr double P50_0           = 26.8; // P50 of oxygen dissociation curve at 37°C, normal pH, DPG of 5.0
 constexpr double left_o2_wide    = 0; // lower bound for pO2
 constexpr double right_o2_wide   = 800.0; // upper bound for pO2
 constexpr double delta_o2_limits = 10.0; // delta for pO2 limits
@@ -74,14 +80,11 @@ double brent_root_fast(F f, double a, double b, double tolerance, int max_iterat
 // -----------------------------------------------------------------------------
 double net_charge_plasma(double hp_estimate);
 double calc_so2(double po2_estimate);
-double calc_so2_exp(double po2_estimate);
 double dO2_content(double po2_estimate);
 
 Output calc_blood_composition(Input _input);
 
 // initialize state variables
-double prev_po2{};
-double prev_ph{};
 double tco2{};
 double to2{};
 double sid{};
@@ -97,6 +100,8 @@ double hco3{};
 double be{};
 double po2{};
 double so2{};
+double prev_po2{};
+double prev_ph{};
 bool error{};
 int iterations{};
 bool error_ab{};
@@ -104,6 +109,7 @@ bool error_oxy{};
 int iterations_ab{};
 int iterations_oxy{};
 
+double P50_0 = 20.0; // PO2 at which 50% of Hgb is saturated by O2 (fetal = 18.8 (high Hb O2 affinity), neonatal = 20.0, adult = 26.7)
 double P50{};
 double log10_p50{};
 double P50_n{};
@@ -116,8 +122,6 @@ double right_hp = 3.16227766017e-4; // upper bound for H⁺ concentration
 Output calc_blood_composition(Input _input) {
 
     // initialize state from inputs
-    prev_po2   = _input.prev_po2;
-    prev_ph    = _input.prev_ph;
     tco2       = _input.tco2;
     to2        = _input.to2;
     sid        = _input.na + _input.k + 2*_input.ca + 2*_input.mg - _input.cl - _input.lact;
@@ -127,6 +131,9 @@ Output calc_blood_composition(Input _input) {
     hemoglobin = _input.hemoglobin;
     temp       = _input.temp;
     dpg        = _input.dpg;
+    prev_po2   = _input.prev_po2;
+    prev_ph    = _input.prev_ph;
+    P50_0      = _input.p50_0;
 
     // initialize the output struct
     Output out; 
@@ -197,7 +204,10 @@ Output calc_blood_composition(Input _input) {
 
     // set the limits based on the previous calculations
     bool limits_used_oxy = false;
-    // set the limits
+    // reset the iteration and error counters
+    iterations = 0;
+    error = false;
+    // set the wide limits as the previous limits were not successful
     left_o2 = left_o2_wide; // lower bound po2
     right_o2 = right_o2_wide; // upper bound po2
     // set the limits based on the previous calculations if available
@@ -217,6 +227,10 @@ Output calc_blood_composition(Input _input) {
 
     // if not successful and limits were used, try again with wider limits
     if (error_oxy && limits_used_oxy) {
+        // reset the iteration and error counters
+        iterations = 0;
+        error = false;
+        // set the wide limits as the previous limits were not successful
         left_o2 = left_o2_wide; // wide lower bound po2
         right_o2 = right_o2_wide; // wide upper bound po2
         po2_est = brent_root_fast([](double x){ return dO2_content(x); }, left_o2, right_o2, brent_accuracy, max_iterations);
@@ -255,19 +269,7 @@ double net_charge_plasma(double hp_estimate) {
 }
 
 // calculate the O2 saturation from the po2 estimate
-double calc_so2(double po2_estimate) {
-    double a  = 1.04*(7.4 - ph) + 0.005*be + 0.07*(dpg - 5.0);
-    double b  = 0.055*(temp + 273.15 - 310.15);
-    double x0 = 1.875 + a + b;
-    double h0 = 3.5   + a;
-    double x  = std::log(po2_estimate * 0.1333);
-    double y  = x - x0 + h0*std::tanh(0.5343*(x - x0)) + 1.875;
-
-    return 1.0 / (std::exp(-y) + 1.0);
-}
-
-// calculate the O2 saturation from the po2 estimate (experimental)
-double calc_so2_exp(double po2_estimate){
+double calc_so2(double po2_estimate){
     double po2_n = std::pow(po2_estimate, n);
     double denom = po2_n + P50_n;
     return po2_n / denom;
@@ -374,7 +376,8 @@ double brent_root_fast(F f, double a, double b, double tolerance, int max_iterat
 //         .field("dpg", &Input::dpg)
 //         .field("uma", &Input::uma)
 //         .field("prev_ph", &Input::prev_ph)
-//         .field("prev_po2", &Input::prev_po2);
+//         .field("prev_po2", &Input::prev_po2)
+//         .field("p50_0", &Input::p50_0);
 //     emscripten::value_object<Output>("Output")
 //         .field("ph", &Output::ph)
 //         .field("pco2", &Output::pco2)
@@ -391,7 +394,7 @@ int main() {
     // Example usage
     Input input;
     input.tco2 = 23.5;
-    input.to2 = 6.87;
+    input.to2 = 4.02;
     input.temp = 37.0;
     input.hemoglobin = 8.0;
     input.na = 138.0;
@@ -404,8 +407,9 @@ int main() {
     input.phosphates = 1.64;
     input.dpg = 5.0;
     input.uma = 3.8;
-    input.prev_po2 = 48.0;
+    input.prev_po2 = 18.7;
     input.prev_ph = 7.37;
+    input.p50_0 = 18.8; // P50_0 = 18.8 for fetal hemoglobin, 26.7 for adult hemoglobin
 
     Output result = calc_blood_composition(input);
     std::cout << "pH: " << result.ph << "\n";
