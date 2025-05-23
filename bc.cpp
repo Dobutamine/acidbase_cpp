@@ -74,9 +74,8 @@ double brent_root_fast(F f, double a, double b, double tolerance, int max_iterat
 // -----------------------------------------------------------------------------
 double net_charge_plasma(double hp_estimate);
 double calc_so2(double po2_estimate);
-double dO2_content(double po2_estimate);
 double calc_so2_exp(double po2_estimate);
-double dO2_content_exp(double po2_estimate);
+double dO2_content(double po2_estimate);
 
 Output calc_blood_composition(Input _input);
 
@@ -267,30 +266,21 @@ double calc_so2(double po2_estimate) {
     return 1.0 / (std::exp(-y) + 1.0);
 }
 
-// calculate the difference between the TO2 and the calculated TO2 from the po2 estimate
-double dO2_content(double po2_estimate){
-    so2 = calc_so2(po2_estimate);
-    double to2_new = (0.0031 * po2_estimate + 1.36 * (hemoglobin/0.6206) * so2) * 10.0;
-
-    double mmol_to_ml = (gas_constant*(273.15 + temp)) / 760.0;
-    to2_new /= mmol_to_ml;
-
-    po2 = po2_estimate;
-    return to2 - to2_new;
-}
-
+// calculate the O2 saturation from the po2 estimate (experimental)
 double calc_so2_exp(double po2_estimate){
     double po2_n = std::pow(po2_estimate, n);
     double denom = po2_n + P50_n;
-    so2 = po2_n / denom;
-    return so2;
+    return po2_n / denom;
 }
 
-double dO2_content_exp(double po2_estimate){
-    double sat = calc_so2_exp(po2_estimate);
-    double do2 = hemoglobin * sat + alpha_o2 * po2_estimate - to2;
-    return do2;
+// calculate the difference between the TO2 and the calculated TO2 from the po2 estimate
+double dO2_content(double po2_estimate){
+    // calculate the O2 saturation
+    so2 = calc_so2(po2_estimate);
+    // calculate the difference between the TO2 and the calculated TO2
+    return hemoglobin * so2 + alpha_o2 * po2_estimate - to2;
 }
+
 // Brent’s method root‐finder
 template<typename F>
 double brent_root_fast(F f, double a, double b, double tolerance, int max_iterations) {
@@ -414,7 +404,7 @@ int main() {
     input.phosphates = 1.64;
     input.dpg = 5.0;
     input.uma = 3.8;
-    input.prev_po2 = 100.0;
+    input.prev_po2 = 48.0;
     input.prev_ph = 7.37;
 
     Output result = calc_blood_composition(input);
